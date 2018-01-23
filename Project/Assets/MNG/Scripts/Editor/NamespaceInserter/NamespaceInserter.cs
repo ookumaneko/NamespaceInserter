@@ -2,7 +2,7 @@ using System.Text;
 using System.IO;
 using System.Collections.Generic;
 
-namespace MNG
+namespace MaxNeet.Editor
 {
 	public class NamespaceInserter
 	{
@@ -12,7 +12,12 @@ namespace MNG
 	    const string TEXT_BRACE_OPEN = "{";
 	    const string TEXT_BRACE_CLOSE = "}";
 	
-	    const int INVALID_VALUE = -1;
+	    const string TEXT_TAB = "\t";
+        const string TEXT_SLASH = "/";
+        const string TEXT_START_COMMENT_GROUP = "/*";
+        const string TEXT_END_COMMENT_GROUP = "*/";
+
+        const int INVALID_VALUE = -1;
 	    const int NAMESPACE_DECLEAR_INDEX = 1;
 	
 	    List<string> m_insertOnTopTexts;
@@ -75,10 +80,27 @@ namespace MNG
 	
 	    private int FindNamespaceIndex(List<string> fileText, bool isSkipOnClassDecleration)
 	    {
+            bool isInCommentGroup = false;
 	        int count = fileText.Count;
 	        for (int i = 0; i < count; ++i)
 	        {
-	            if (fileText[i].Contains(TEXT_NAMESPACE))
+                if (isInCommentGroup)
+                {
+                    if (fileText[i].Contains(TEXT_END_COMMENT_GROUP))
+                    {
+                        isInCommentGroup = false;
+                    }
+
+                    continue;
+                }
+
+                if (fileText[i].Contains(TEXT_START_COMMENT_GROUP))
+                {
+                    isInCommentGroup = true;
+                    continue;
+                }
+
+                if (fileText[i].Contains(TEXT_NAMESPACE))
 	            {
 	                return i;
 	            }
@@ -92,13 +114,54 @@ namespace MNG
 	
 	        return INVALID_VALUE;
 	    }
-
+	
+	    private int FindInsertIndex(List<string> fileText)
+	    {
+	        int listCount = m_insertOnTopTexts.Count;
+	        int count = fileText.Count;
+	        for (int ii = 0; ii < count; ++ii)
+	        {
+	            for (int kk = 0; kk < listCount; ++kk)
+	            {
+	                if (fileText[ii].Contains(m_insertOnTopTexts[kk]))
+	                {
+	                    return ii;
+	                }
+	            }
+	        }
+	
+	        return INVALID_VALUE;
+	    }
+	
+	    private int FindTextIndex(List<string> fileText, string textToFind)
+	    {
+	        int count = fileText.Count;
+	        for (int i = 0; i < count; ++i)
+	        {
+	            if (fileText[i].Contains(textToFind))
+	            {
+	                return i;
+	            }
+	        }
+	
+	        return INVALID_VALUE;
+	    }
+	
 	    private void OverwriteNamespace(string namespaceName, int namespaceIndex, ref List<string> fileText)
 	    {
 	        StringBuilder builder = new StringBuilder();
 	        builder.Append(TEXT_NAMESPACE);
 	        builder.Append(" ");
-	        builder.Append(namespaceName);	
+	        builder.Append(namespaceName);
+	
+	        // 既にnamespace有る場合はインデントいらない？
+	        //int lastIndex = FindTextIndex(fileText, TEXT_BRACE_CLOSE);
+	        //int count = fileText.Count;
+	        //for (int i = namespaceIndex; i < lastIndex; ++i)
+	        //{
+	        //    fileText[i] = fileText[i].Insert(0, TEXT_TAB);
+	        //}
+	
 	        fileText[namespaceIndex] = builder.ToString();
 	    }
 	
@@ -109,7 +172,7 @@ namespace MNG
 	        int count = fileText.Count;
 	        for (int i = insertIndex; i < count; ++i)
 	        {
-	            fileText[i] = fileText[i].Insert(0, TextDefine.TAB);
+	            fileText[i] = fileText[i].Insert(0, TEXT_TAB);
 	        }
 	
 	        StringBuilder builder = new StringBuilder();
@@ -121,26 +184,8 @@ namespace MNG
 	        fileText.Insert(insertIndex + 1, TEXT_BRACE_OPEN);
 	        fileText.Add(TEXT_BRACE_CLOSE);
 	    }
-
-        private int FindInsertIndex(List<string> fileText)
-        {
-            int listCount = m_insertOnTopTexts.Count;
-            int count = fileText.Count;
-            for (int ii = 0; ii < count; ++ii)
-            {
-                for (int kk = 0; kk < listCount; ++kk)
-                {
-                    if (fileText[ii].Contains(m_insertOnTopTexts[kk]))
-                    {
-                        return ii;
-                    }
-                }
-            }
-
-            return INVALID_VALUE;
-        }
-
-        private void SaveToFile(List<string> list, string path)
+	
+	    private void SaveToFile(List<string> list, string path)
 	    {
 	        using (var stream = new StreamWriter(path, false))
 	        {
